@@ -9,7 +9,8 @@ function DemonstratorComponent() {
   const [responses, setResponses] = useState([]);
   const [manualInputs, setManualInputs] = useState([]);
 
-
+// state to manage processing status
+const [isProcessing, setIsProcessing] = useState(false);
 
 // State to manage manual input for instrument, date, and time
 const [showManualInput, setShowManualInput] = useState(false);
@@ -32,7 +33,7 @@ const handleImageChange = async (e) => {
         formData.append('file', file);
 
         try {
-          const res = await axios.post('http://147.232.204.249:5500/convert-fits', formData, {
+          const res = await axios.post('/convert-fits', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           console.log('FITS conversion response:', res.data); // Add this line
@@ -129,11 +130,12 @@ const decompressMask = (encodedMask) => {
 
 
 
-// function to handle form submission
 const handleSubmit = async (e) => {
   e.preventDefault();
   if (images.length === 0) return;
-
+  
+  setIsProcessing(true); // set processing state to true when starting
+  
   const promises = images.map((image, idx) => {
     return new Promise((resolve, reject) => {
       let instrument, date, time;
@@ -147,6 +149,7 @@ const handleSubmit = async (e) => {
         else date = "Unknown";
         if (time && time.length >= 8) time = time.slice(0, 8);
         else time = "Unknown";
+        
       } else {
         // 2. Try filename
         ({ instrument, date, time } = extractDateTime(image.name));
@@ -179,7 +182,7 @@ const handleSubmit = async (e) => {
           date,
           time,
         };
-        axios.post("http://147.232.204.249:5000/predict", data)
+        axios.post("/predict", data)
           .then(res => resolve(res.data))
           .catch(error => reject(error));
       } else {
@@ -196,7 +199,7 @@ const handleSubmit = async (e) => {
             time,
           };
           try {
-            const res = await axios.post("http://147.232.204.249:5000/predict", data);
+            const res = await axios.post("/predict", data);
             resolve(res.data);
           } catch (error) {
             reject(error);
@@ -212,6 +215,8 @@ const handleSubmit = async (e) => {
     setResponses(results);
   } catch (error) {
     // Error already alerted per image
+  } finally {
+    setIsProcessing(false); // set processing state to false after all requests complete
   }
 };
 
@@ -381,6 +386,13 @@ const handleSubmit = async (e) => {
       </div>
     </div>
   )
+)}
+
+
+{isProcessing && (
+  <div style={styles.processingMessage}>
+    <p>Processing the request ...</p>
+  </div>
 )}
 
 
@@ -605,6 +617,16 @@ const styles = {
     color: '#1B3A6F',
     marginBottom: '10px',
   },
+// processing image message style
+processingMessage: {
+  backgroundColor: '#e6f3ff',
+  padding: '10px',
+  borderRadius: '4px',
+  marginBottom: '15px',
+  textAlign: 'center',
+  color: '#1B3A6F',
+  fontWeight: 'bold',
+},
 };
 
 export default DemonstratorComponent;
